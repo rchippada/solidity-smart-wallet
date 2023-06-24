@@ -32,40 +32,43 @@ contract('SmartWallet', (accounts) => {
     })
 
     it("can give allowance after depositing", async() => {
-        const smartWalletInst = await SmartWallet.deployed();
+        // deployed() is a singleton; using the same instance across tests will impact
+        // the account balance asserts; use a new() instance instead for this test
+        const smartWalletInst = await SmartWallet.new();
+
         const accounts = await web3.eth.getAccounts();
 
-        let senderAcctBalanceBeforeDeposit = await web3.eth.getBalance(accounts[3]);
+        let senderAcctBalanceBeforeDeposit = await web3.eth.getBalance(accounts[1]);
         let ownerAcctBalanceBeforeDeposit = await web3.eth.getBalance(accounts[0]);
 
-        let txResult = await smartWalletInst.depositMoney({from: accounts[3], value: web3.utils.toWei("10", "ether")});
+        let txResult = await smartWalletInst.depositMoney({from: accounts[1], value: web3.utils.toWei("10", "ether")});
         truffleAssert.eventEmitted(txResult, 'DepositedMoney');
 
-        let senderAcctBalanceAfterDeposit = await web3.eth.getBalance(accounts[3]);
+        let senderAcctBalanceAfterDeposit = await web3.eth.getBalance(accounts[1]);
         let ownerAcctBalanceAfterDeposit = await web3.eth.getBalance(accounts[0]);
 
         assert.equal((senderAcctBalanceBeforeDeposit-senderAcctBalanceAfterDeposit) > web3.utils.toWei("10", "ether"), true, "Account balance is expected to be depleted by 10 ether and gas");
         assert.equal((ownerAcctBalanceAfterDeposit-ownerAcctBalanceBeforeDeposit) > web3.utils.toWei("9", "ether"), true, "Account balance is expected to be increased about 10 ether minus gas");
 
-        let allowance = await smartWalletInst.getAllowance(accounts[3]);
+        let allowance = await smartWalletInst.getAllowance(accounts[1]);
         assert.equal(allowance, web3.utils.toWei("10", "ether"), "Allowance expected to be 10 ether after deposit");
 
-        let recipientAcctBalanceBeforeAllowance = await web3.eth.getBalance(accounts[4]);
+        let recipientAcctBalanceBeforeAllowance = await web3.eth.getBalance(accounts[2]);
 
-        txResult = await smartWalletInst.giveAllowance(accounts[3], accounts[4], {from: accounts[0], value: web3.utils.toWei("2", "ether")});
+        txResult = await smartWalletInst.giveAllowance(accounts[1], accounts[2], {from: accounts[0], value: web3.utils.toWei("2", "ether")});
         truffleAssert.eventEmitted(txResult, 'SentMoney');
 
-        let senderAllowance = await smartWalletInst.getAllowance(accounts[3]);
+        let senderAllowance = await smartWalletInst.getAllowance(accounts[1]);
         assert.equal(senderAllowance, web3.utils.toWei("8", "ether"), "Allowance expected to be 8 ether after giving allowance");
 
-        let recipientAllowance = await smartWalletInst.getAllowance(accounts[4]);
+        let recipientAllowance = await smartWalletInst.getAllowance(accounts[2]);
         assert.equal(recipientAllowance, web3.utils.toWei("2", "ether"), "Allowance expected to be 2 ether after getting allowance");
 
-        let senderAcctBalanceAfterGivingAllowance = await web3.eth.getBalance(accounts[3]);
+        let senderAcctBalanceAfterGivingAllowance = await web3.eth.getBalance(accounts[1]);
 
         assert.equal(senderAcctBalanceAfterDeposit, senderAcctBalanceAfterGivingAllowance, "Allowance is expected to be from deposited money");
 
-        let recipientAcctBalanceAfterAllowance = await web3.eth.getBalance(accounts[4]);
+        let recipientAcctBalanceAfterAllowance = await web3.eth.getBalance(accounts[2]);
         assert.equal((recipientAcctBalanceAfterAllowance-senderAcctBalanceAfterGivingAllowance) > web3.utils.toWei("2", "ether"), true, "Account balance is expected to be increased by allowance amount");
 
         let ownerAcctBalanceAfterAllowance = await web3.eth.getBalance(accounts[0]);
